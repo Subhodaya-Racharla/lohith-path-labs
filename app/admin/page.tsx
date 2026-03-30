@@ -6,8 +6,11 @@ import type { User } from "@supabase/supabase-js";
 import LoginForm from "./components/LoginForm";
 import BookingsTab from "./components/BookingsTab";
 import TestsTab from "./components/TestsTab";
+import GalleryTab from "./components/GalleryTab";
+import ReviewsTab from "./components/ReviewsTab";
+import BioTab from "./components/BioTab";
 
-type Tab = "bookings" | "tests";
+type Tab = "bookings" | "tests" | "gallery" | "reviews" | "profile";
 
 export default function AdminPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -15,15 +18,10 @@ export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("bookings");
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
-      setChecking(false);
-    });
-
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      setChecking(false);
     });
-
     return () => listener.subscription.unsubscribe();
   }, []);
 
@@ -44,7 +42,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Top Nav */}
-      <div className="hero-bg px-4 pt-6 pb-16">
+      <div className="hero-bg px-4 pt-6 pb-8">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
@@ -75,7 +73,10 @@ export default function AdminPage() {
         <div className="max-w-5xl mx-auto mt-6 flex gap-2">
           {([
             { key: "bookings", label: "Bookings", icon: "📋" },
-            { key: "tests", label: "Manage Tests", icon: "🧪" },
+            { key: "tests", label: "Tests", icon: "🧪" },
+            { key: "gallery", label: "Gallery", icon: "🖼️" },
+            { key: "reviews", label: "Reviews", icon: "⭐" },
+            { key: "profile", label: "Profile", icon: "👤" },
           ] as { key: Tab; label: string; icon: string }[]).map((t) => (
             <button
               key={t.key}
@@ -93,10 +94,12 @@ export default function AdminPage() {
       </div>
 
       {/* Content */}
-      <div className="max-w-5xl mx-auto px-4 -mt-8 pb-16">
-        <div className="bg-slate-50 rounded-2xl p-2">
-          {tab === "bookings" ? <BookingsTab /> : <TestsTab />}
-        </div>
+      <div className="max-w-5xl mx-auto px-4 pt-6 pb-16">
+        {tab === "bookings" && <BookingsTab />}
+        {tab === "tests" && <TestsTab />}
+        {tab === "gallery" && <GalleryTab />}
+        {tab === "reviews" && <ReviewsTab />}
+        {tab === "profile" && <BioTab />}
       </div>
     </div>
   );
