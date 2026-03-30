@@ -78,6 +78,18 @@ function BookForm() {
   }
 
   if (success) {
+    const lines = [
+      "Hello, I just booked a test online.",
+      `Name: ${form.patient_name}`,
+      `Phone: ${form.phone}`,
+      form.email ? `Email: ${form.email}` : "",
+      form.test_name ? `Test: ${form.test_name}` : "",
+      `Collection: ${form.collection_type === "home" ? "Home Collection" : "Walk-in"}`,
+      form.preferred_date ? `Preferred Date: ${form.preferred_date}` : "",
+      form.notes ? `Notes: ${form.notes}` : "",
+    ].filter(Boolean).join("\n");
+    const waUrl = `https://wa.me/919182147180?text=${encodeURIComponent(lines)}`;
+
     return (
       <div className="min-h-screen hero-bg flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl p-10 max-w-md w-full text-center shadow-xl">
@@ -96,7 +108,7 @@ function BookForm() {
           </p>
           <div className="flex flex-col gap-3">
             <a
-              href="https://wa.me/919182147180?text=Hello%2C%20I%20just%20booked%20a%20test%20online"
+              href={waUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold px-6 py-3 rounded-full transition-colors"
