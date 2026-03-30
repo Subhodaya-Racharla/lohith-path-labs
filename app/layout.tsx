@@ -8,6 +8,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  icons: { icon: "/icon.svg" },
   title: "Lohith Advanced Quality Testing Path Labs | Medak, Telangana",
   description:
     "Trusted pathology laboratory in Medak, Hussainpur, Telangana. Blood tests, thyroid, ECG, allergy testing with home sample collection. Accurate results, experienced staff.",
