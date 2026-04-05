@@ -186,7 +186,7 @@ function TestsInner() {
   if (step === "checkout") {
     return (
       <div className="min-h-screen bg-slate-50">
-        <V2Navbar />
+        <V2Navbar dark />
         <div className="pt-20 pb-16 px-4">
           <div className="max-w-2xl mx-auto">
             {/* Header */}
@@ -346,7 +346,7 @@ function TestsInner() {
 
   return (
     <div className="h-screen flex flex-col bg-slate-50">
-      <V2Navbar />
+      <V2Navbar dark />
 
       {/* Spacer for fixed navbar */}
       <div className="h-16 shrink-0" />
@@ -384,7 +384,7 @@ function TestsInner() {
 
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto">
-      <div className="max-w-6xl mx-auto px-4 pt-6 pb-32 md:pb-16">
+      <div className="max-w-6xl mx-auto px-4 pt-10 pb-32 md:pb-16">
         <div className="md:grid md:grid-cols-[1fr_340px] md:gap-6 md:items-start">
 
           {/* ── Tests grid ── */}
