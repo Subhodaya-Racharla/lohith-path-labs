@@ -34,9 +34,13 @@ export default function ReportsPage() {
     setError("");
     setLoading(true);
 
-    const { data } = await supabase.from("bookings").select("id").eq("phone", digits).limit(1);
+    const { data, error: dbError } = await supabase.from("bookings").select("id").eq("phone", digits).limit(1);
     setLoading(false);
 
+    if (dbError) {
+      setError(`Error: ${dbError.message}`);
+      return;
+    }
     if (!data || data.length === 0) {
       setError("No bookings found for this number. Please check and try again.");
       return;
@@ -65,12 +69,17 @@ export default function ReportsPage() {
 
     const digits = phone.replace(/\D/g, "");
 
-    const { data: bookingsData } = await supabase
+    const { data: bookingsData, error: bookingsError } = await supabase
       .from("bookings")
       .select("*")
       .eq("phone", digits)
       .order("created_at", { ascending: false });
 
+    if (bookingsError) {
+      setLoading(false);
+      setError(`Error: ${bookingsError.message}`);
+      return;
+    }
     if (!bookingsData || bookingsData.length === 0) {
       setLoading(false);
       setError("Could not load your bookings.");
