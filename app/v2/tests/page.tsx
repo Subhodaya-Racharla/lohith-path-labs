@@ -345,11 +345,14 @@ function TestsInner() {
   // ── Browse screen ────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="h-screen flex flex-col bg-slate-50">
       <V2Navbar />
 
-      {/* Fixed search + categories */}
-      <div className="fixed top-16 left-0 right-0 z-30 bg-white/95 backdrop-blur border-b border-slate-100 shadow-sm">
+      {/* Spacer for fixed navbar */}
+      <div className="h-16 shrink-0" />
+
+      {/* Search + categories — always visible, never overlaps cards */}
+      <div className="shrink-0 bg-white border-b border-slate-100 shadow-sm z-20">
         <div className="max-w-6xl mx-auto px-4 py-3 space-y-2">
           {/* Search */}
           <div className="relative">
@@ -379,8 +382,9 @@ function TestsInner() {
         </div>
       </div>
 
-      {/* Page content: tests grid + cart sidebar */}
-      <div className="max-w-6xl mx-auto px-4 pt-[168px] pb-32 md:pb-16">
+      {/* Scrollable content area */}
+      <div className="flex-1 overflow-y-auto">
+      <div className="max-w-6xl mx-auto px-4 pt-6 pb-32 md:pb-16">
         <div className="md:grid md:grid-cols-[1fr_340px] md:gap-6 md:items-start">
 
           {/* ── Tests grid ── */}
@@ -444,7 +448,7 @@ function TestsInner() {
           </div>
 
           {/* ── Cart sidebar (desktop only) ── */}
-          <div className="hidden md:block sticky top-[160px]">
+          <div className="hidden md:block sticky top-4">
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
               <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                 <h3 className="font-bold text-slate-900">Your Cart</h3>
@@ -495,6 +499,7 @@ function TestsInner() {
 
         </div>
       </div>
+      </div>{/* end scrollable area */}
 
       {/* ── Mobile sticky bottom bar ── */}
       <div className={`md:hidden fixed bottom-0 left-0 right-0 z-40 transition-all duration-300 ${count > 0 ? "translate-y-0" : "translate-y-full"}`}>
