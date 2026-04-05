@@ -23,6 +23,13 @@ export type Test = {
   created_at: string;
 };
 
+export type CartItemRecord = {
+  id: string;
+  name: string;
+  price: number | null;
+  category?: string | null;
+};
+
 export type Booking = {
   id: string;
   patient_name: string;
@@ -35,6 +42,12 @@ export type Booking = {
   status: "pending" | "report_sent" | "completed";
   notes: string | null;
   created_at: string;
+  // V2 fields (optional for backward compat)
+  address?: string | null;
+  time_slot?: string | null;
+  payment_method?: string | null;
+  booking_ref?: string | null;
+  cart_items?: CartItemRecord[] | null;
 };
 
 export type Report = {
