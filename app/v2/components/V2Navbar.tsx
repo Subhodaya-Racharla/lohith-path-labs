@@ -14,12 +14,7 @@ export default function V2Navbar() {
     return () => window.removeEventListener("scroll", fn);
   }, []);
 
-  const links = [
-    { href: "#services", label: "Services" },
-    { href: "#why-us",   label: "Why Us" },
-    { href: "#process",  label: "How It Works" },
-    { href: "#contact",  label: "Contact" },
-  ];
+  const links: { href: string; label: string }[] = [];
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? "nav-blur shadow-lg shadow-black/20" : "bg-transparent"}`}>

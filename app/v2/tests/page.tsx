@@ -18,14 +18,7 @@ const TIME_SLOTS = [
   "4:00 PM – 6:00 PM",
 ];
 
-const CAT_COLOR: Record<string, string> = {
-  Blood:   "from-red-500 to-rose-400",
-  Thyroid: "from-purple-500 to-violet-400",
-  ECG:     "from-pink-500 to-rose-400",
-  Allergy: "from-yellow-500 to-orange-400",
-  Other:   "from-blue-500 to-cyan-400",
-};
-const DEFAULT_COLOR = "from-teal-500 to-cyan-400";
+const BRAND_COLOR = "from-blue-600 to-cyan-500";
 
 type Step = "browse" | "checkout" | "confirmed";
 
@@ -214,7 +207,7 @@ function TestsInner() {
                 {items.map(i => (
                   <div key={i.test.id} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full bg-gradient-to-r ${CAT_COLOR[i.test.category ?? ""] ?? DEFAULT_COLOR}`} />
+                      <span className={`w-2 h-2 rounded-full bg-gradient-to-r ${BRAND_COLOR}`} />
                       <span className="text-slate-800 font-medium">{i.test.name}</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -410,11 +403,10 @@ function TestsInner() {
               <div className="grid sm:grid-cols-2 gap-4">
                 {filtered.map(test => {
                   const inCart = has(test.id);
-                  const color = CAT_COLOR[test.category ?? ""] ?? DEFAULT_COLOR;
                   return (
                     <div key={test.id} className={`bg-white rounded-2xl border-2 transition-all duration-200 p-5 flex flex-col ${inCart ? "border-blue-400 shadow-md shadow-blue-100" : "border-slate-100 hover:border-slate-200"}`}>
                       <div className="flex items-start justify-between mb-3">
-                        <span className={`text-xs font-semibold px-3 py-1 rounded-full bg-gradient-to-r ${color} text-white`}>
+                        <span className={`text-xs font-semibold px-3 py-1 rounded-full bg-gradient-to-r ${BRAND_COLOR} text-white`}>
                           {test.category}
                         </span>
                         {test.price !== null && (
@@ -436,7 +428,7 @@ function TestsInner() {
                           </button>
                         ) : (
                           <button onClick={() => add(test)}
-                            className={`w-full flex items-center justify-center gap-2 bg-gradient-to-r ${color} text-white text-sm font-semibold px-4 py-2.5 rounded-full hover:opacity-90 transition-opacity`}>
+                            className={`w-full flex items-center justify-center gap-2 bg-gradient-to-r ${BRAND_COLOR} text-white text-sm font-semibold px-4 py-2.5 rounded-full hover:opacity-90 transition-opacity`}>
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                             </svg>
@@ -472,7 +464,7 @@ function TestsInner() {
                     {items.map(i => (
                       <div key={i.test.id} className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className={`w-2 h-2 shrink-0 rounded-full bg-gradient-to-r ${CAT_COLOR[i.test.category ?? ""] ?? DEFAULT_COLOR}`} />
+                          <span className={`w-2 h-2 shrink-0 rounded-full bg-gradient-to-r ${BRAND_COLOR}`} />
                           <span className="text-sm text-slate-800 font-medium truncate">{i.test.name}</span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
@@ -521,7 +513,7 @@ function TestsInner() {
               {items.map(i => (
                 <div key={i.test.id} className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className={`w-2 h-2 shrink-0 rounded-full bg-gradient-to-r ${CAT_COLOR[i.test.category ?? ""] ?? DEFAULT_COLOR}`} />
+                    <span className={`w-2 h-2 shrink-0 rounded-full bg-gradient-to-r ${BRAND_COLOR}`} />
                     <span className="text-slate-800 font-medium truncate">{i.test.name}</span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">

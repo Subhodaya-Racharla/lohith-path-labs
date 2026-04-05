@@ -12,14 +12,7 @@ import Footer from "@/app/components/Footer";
 import FloatingButtons from "@/app/components/FloatingButtons";
 import V2Navbar from "./components/V2Navbar";
 
-const CATEGORY_STYLES: Record<string, { color: string; bg: string; border: string }> = {
-  Blood:   { color: "from-red-500 to-rose-400",      bg: "bg-red-50",    border: "border-red-100" },
-  Thyroid: { color: "from-purple-500 to-violet-400", bg: "bg-purple-50", border: "border-purple-100" },
-  ECG:     { color: "from-pink-500 to-rose-400",     bg: "bg-pink-50",   border: "border-pink-100" },
-  Allergy: { color: "from-yellow-500 to-orange-400", bg: "bg-yellow-50", border: "border-yellow-100" },
-  Other:   { color: "from-blue-500 to-cyan-400",     bg: "bg-blue-50",   border: "border-blue-100" },
-};
-const DEFAULT_STYLE = { color: "from-teal-500 to-cyan-400", bg: "bg-teal-50", border: "border-teal-100" };
+const BRAND_STYLE = { color: "from-blue-600 to-cyan-500", bg: "bg-blue-50", border: "border-blue-100" };
 
 function V2Hero() {
   return (
@@ -134,7 +127,7 @@ function V2Services() {
           <>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {visible.map(test => {
-                const style = CATEGORY_STYLES[test.category ?? ""] ?? DEFAULT_STYLE;
+                const style = BRAND_STYLE;
                 return (
                   <div key={test.id} className={`${style.bg} border ${style.border} rounded-2xl p-6 card-hover flex flex-col`}>
                     <div className="flex items-center justify-between mb-4">
