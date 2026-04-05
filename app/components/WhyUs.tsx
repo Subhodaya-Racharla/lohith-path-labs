@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 const features = [
   {
     icon: (
@@ -68,10 +72,12 @@ const features = [
 ];
 
 export default function WhyUs() {
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? features : features.slice(0, 3);
+
   return (
     <section id="why-us" className="py-20 bg-slate-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="text-center mb-14">
           <span className="inline-block text-blue-600 font-semibold text-sm uppercase tracking-wider mb-3">
             Why Choose Us
@@ -85,13 +91,9 @@ export default function WhyUs() {
           </p>
         </div>
 
-        {/* Features Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((feature, i) => (
-            <div
-              key={i}
-              className="bg-white rounded-2xl p-6 border border-slate-100 card-hover"
-            >
+          {visible.map((feature, i) => (
+            <div key={i} className="bg-white rounded-2xl p-6 border border-slate-100 card-hover">
               <div className="flex items-start justify-between mb-4">
                 <div className="p-3 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-xl text-white shadow-md">
                   {feature.icon}
@@ -107,7 +109,16 @@ export default function WhyUs() {
           ))}
         </div>
 
-        {/* Bottom Trust Section */}
+        <div className="text-center mt-8">
+          <button onClick={() => setShowAll(!showAll)}
+            className="inline-flex items-center gap-2 border-2 border-blue-200 text-blue-600 font-semibold px-8 py-3 rounded-full hover:bg-blue-50 transition-colors">
+            {showAll ? "Show Less" : `Show More (${features.length - 3} more)`}
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={showAll ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+            </svg>
+          </button>
+        </div>
+
         <div className="mt-14 grid sm:grid-cols-3 gap-6 text-center">
           {[
             { value: "5,000+", label: "Tests Completed", icon: "🧪" },

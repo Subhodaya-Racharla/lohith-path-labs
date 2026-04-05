@@ -151,25 +151,21 @@ function V2Services() {
             </div>
             {tests.length > INITIAL_COUNT && (
               <div className="text-center mt-8">
-                <button onClick={() => setShowAll(!showAll)}
-                  className="inline-flex items-center gap-2 border-2 border-blue-200 text-blue-600 font-semibold px-8 py-3 rounded-full hover:bg-blue-50 transition-colors">
-                  {showAll ? <>Show Less <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg></> : <>Show More ({tests.length - INITIAL_COUNT} more) <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></>}
-                </button>
+                {showAll ? (
+                  <button onClick={() => setShowAll(false)}
+                    className="inline-flex items-center gap-2 border-2 border-blue-200 text-blue-600 font-semibold px-8 py-3 rounded-full hover:bg-blue-50 transition-colors">
+                    Show Less <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                  </button>
+                ) : (
+                  <a href="/v2/tests"
+                    className="inline-flex items-center gap-2 border-2 border-blue-200 text-blue-600 font-semibold px-8 py-3 rounded-full hover:bg-blue-50 transition-colors">
+                    View More ({tests.length - INITIAL_COUNT} more) <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </a>
+                )}
               </div>
             )}
           </>
         )}
-
-        <div className="mt-12 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl p-8 text-white text-center">
-          <h3 className="text-2xl font-bold mb-2">Browse all tests & book instantly</h3>
-          <p className="text-blue-100 mb-6">Search, add to cart, and checkout — all in one page. No account needed.</p>
-          <a href="/v2/tests" className="inline-flex items-center gap-2 bg-white text-blue-600 font-semibold px-8 py-3 rounded-full hover:bg-blue-50 transition-colors shadow">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            View All Tests
-          </a>
-        </div>
       </div>
     </section>
   );
@@ -185,11 +181,11 @@ export default function V2HomePage() {
     <>
       <V2Navbar />
       <V2Hero />
-      <WhyUs />
       <V2Services />
+      <Bio />
+      <WhyUs />
       <Process />
       <Gallery />
-      <Bio />
       <Testimonials />
       <Contact />
       <Footer />

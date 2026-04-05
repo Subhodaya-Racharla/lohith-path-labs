@@ -424,7 +424,7 @@ function TestsInner() {
                       <div className="mt-auto">
                         {inCart ? (
                           <button onClick={() => remove(test.id)}
-                            className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white text-sm font-semibold px-4 py-2.5 rounded-full transition-colors hover:bg-red-500">
+                            className="w-full flex items-center justify-center gap-2 bg-green-500 text-white text-sm font-semibold px-4 py-2.5 rounded-full transition-colors hover:bg-red-500">
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
