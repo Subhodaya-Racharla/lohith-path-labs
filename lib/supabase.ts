@@ -39,7 +39,7 @@ export type Booking = {
   test_name: string;
   collection_type: "home" | "walkin";
   preferred_date: string | null;
-  status: "pending" | "report_sent" | "completed";
+  status: "pending" | "sample_collected" | "report_sent" | "completed" | "cancelled";
   notes: string | null;
   created_at: string;
   // V2 fields (optional for backward compat)

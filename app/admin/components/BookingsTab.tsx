@@ -4,23 +4,29 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase, type Booking, type Report } from "@/lib/supabase";
 
 const STATUS_STYLES: Record<string, string> = {
-  pending: "bg-yellow-100 text-yellow-700 border-yellow-200",
-  report_sent: "bg-blue-100 text-blue-700 border-blue-200",
-  completed: "bg-green-100 text-green-700 border-green-200",
+  pending:          "bg-yellow-100 text-yellow-700 border-yellow-200",
+  sample_collected: "bg-orange-100 text-orange-700 border-orange-200",
+  report_sent:      "bg-blue-100 text-blue-700 border-blue-200",
+  completed:        "bg-green-100 text-green-700 border-green-200",
+  cancelled:        "bg-red-100 text-red-700 border-red-200",
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: "Pending",
-  report_sent: "Report Sent",
-  completed: "Completed",
+  pending:          "Pending",
+  sample_collected: "Sample Collected",
+  report_sent:      "Report Sent",
+  completed:        "Completed",
+  cancelled:        "Cancelled",
 };
+
+const STATUS_ORDER = ["pending", "sample_collected", "report_sent", "completed", "cancelled"] as const;
 
 export default function BookingsTab() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [reports, setReports] = useState<Record<string, Report>>({});
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | "pending" | "report_sent" | "completed">("all");
+  const [filter, setFilter] = useState<"all" | "pending" | "sample_collected" | "report_sent" | "completed" | "cancelled">("all");
 
   const fetchData = useCallback(async () => {
     // Clean up expired reports first
@@ -111,6 +117,11 @@ export default function BookingsTab() {
     fetchData();
   }
 
+  async function updateStatus(bookingId: string, status: string) {
+    await supabase.from("bookings").update({ status }).eq("id", bookingId);
+    fetchData();
+  }
+
   async function markCompleted(bookingId: string) {
     await supabase.from("bookings").update({ status: "completed" }).eq("id", bookingId);
     fetchData();
@@ -164,7 +175,7 @@ export default function BookingsTab() {
 
       {/* Filter Tabs */}
       <div className="flex gap-2 mb-5 flex-wrap">
-        {(["all", "pending", "report_sent", "completed"] as const).map((f) => (
+        {(["all", "pending", "sample_collected", "report_sent", "completed", "cancelled"] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -274,18 +285,16 @@ export default function BookingsTab() {
                     </a>
                   )}
 
-                  {/* Mark Complete */}
-                  {booking.status === "report_sent" && (
-                    <button
-                      onClick={() => markCompleted(booking.id)}
-                      className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-full bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Mark Complete
-                    </button>
-                  )}
+                  {/* Status updater */}
+                  <select
+                    value={booking.status}
+                    onChange={e => updateStatus(booking.id, e.target.value)}
+                    className="text-sm font-medium px-3 py-2 rounded-full border border-slate-200 bg-slate-50 text-slate-700 cursor-pointer hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  >
+                    {STATUS_ORDER.map(s => (
+                      <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             );

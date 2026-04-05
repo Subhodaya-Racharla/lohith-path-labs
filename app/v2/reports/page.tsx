@@ -8,24 +8,31 @@ type ReportStep = "phone" | "otp" | "results";
 type BookingWithReport = Booking & { report: Report | null };
 
 const STATUS_STYLES: Record<string, string> = {
-  pending:     "bg-yellow-50 text-yellow-700 border-yellow-200",
-  report_sent: "bg-blue-50 text-blue-700 border-blue-200",
-  completed:   "bg-green-50 text-green-700 border-green-200",
+  pending:          "bg-yellow-50 text-yellow-700 border-yellow-200",
+  sample_collected: "bg-orange-50 text-orange-700 border-orange-200",
+  report_sent:      "bg-blue-50 text-blue-700 border-blue-200",
+  completed:        "bg-green-50 text-green-700 border-green-200",
+  cancelled:        "bg-red-50 text-red-700 border-red-200",
 };
 const STATUS_LABELS: Record<string, string> = {
-  pending:     "Pending",
-  report_sent: "Report Ready",
-  completed:   "Completed",
+  pending:          "Pending",
+  sample_collected: "Sample Collected",
+  report_sent:      "Report Ready",
+  completed:        "Completed",
+  cancelled:        "Cancelled",
 };
 
 export default function ReportsPage() {
   const [step, setStep]               = useState<ReportStep>("phone");
   const [phone, setPhone]             = useState("");
+  const [bookingRef, setBookingRef]   = useState("");
+  const [searchMode, setSearchMode]   = useState<"phone" | "ref">("phone");
   const [otp, setOtp]                 = useState("");
   const [generatedOtp, setGeneratedOtp] = useState("");
   const [bookings, setBookings]       = useState<BookingWithReport[]>([]);
   const [error, setError]             = useState("");
   const [loading, setLoading]         = useState(false);
+  const [cancelling, setCancelling]   = useState<string | null>(null);
 
   // ── Step 1: Send OTP ─────────────────────────────────────────────────────────
   async function handleSendOtp() {
@@ -97,6 +104,43 @@ export default function ReportsPage() {
     setStep("results");
   }
 
+  // ── Search by booking ref ────────────────────────────────────────────────────
+  async function handleSearchByRef() {
+    const ref = bookingRef.trim().toUpperCase();
+    if (!ref) { setError("Enter a booking ID"); return; }
+    setError("");
+    setLoading(true);
+
+    const { data, error: dbError } = await supabase
+      .from("bookings").select("*").eq("booking_ref", ref).limit(1);
+
+    if (dbError || !data || data.length === 0) {
+      setLoading(false);
+      setError("No booking found with this ID. Please check and try again.");
+      return;
+    }
+
+    const bookingData = data[0] as Booking;
+    const { data: reportsData } = await supabase
+      .from("reports").select("*").eq("booking_id", bookingData.id);
+
+    const reportsMap: Record<string, Report> = {};
+    (reportsData || []).forEach((r: Report) => { reportsMap[r.booking_id] = r; });
+
+    setBookings([{ ...bookingData, report: reportsMap[bookingData.id] ?? null }]);
+    setLoading(false);
+    setStep("results");
+  }
+
+  // ── Cancel booking ───────────────────────────────────────────────────────────
+  async function handleCancel(bookingId: string) {
+    if (!confirm("Are you sure you want to cancel this booking?")) return;
+    setCancelling(bookingId);
+    await supabase.from("bookings").update({ status: "cancelled" }).eq("id", bookingId);
+    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: "cancelled" } : b));
+    setCancelling(null);
+  }
+
   // ── UI ───────────────────────────────────────────────────────────────────────
 
   return (
@@ -116,26 +160,54 @@ export default function ReportsPage() {
             <p className="text-slate-500 text-sm">Enter your registered mobile number to view your bookings and download reports.</p>
           </div>
 
-          {/* ── Phone step ── */}
+          {/* ── Phone / Booking Ref step ── */}
           {step === "phone" && (
             <div className="bg-white rounded-2xl border border-slate-200 p-6">
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                Mobile Number
-              </label>
-              <input
-                type="tel" value={phone} inputMode="numeric" maxLength={10}
-                onChange={e => { setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); setError(""); }}
-                placeholder="10-digit number used during booking"
-                className={`w-full border rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:border-transparent ${error ? "border-red-400 focus:ring-red-400" : "border-slate-200 focus:ring-blue-500"}`}
-                onKeyDown={e => e.key === "Enter" && handleSendOtp()}
-              />
-              {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
-              <button onClick={handleSendOtp} disabled={loading}
-                className="w-full mt-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
-                {loading ? (
-                  <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Checking...</>
-                ) : "Send OTP"}
-              </button>
+              {/* Toggle tabs */}
+              <div className="flex rounded-xl border border-slate-200 overflow-hidden mb-5">
+                <button onClick={() => { setSearchMode("phone"); setError(""); }}
+                  className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${searchMode === "phone" ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
+                  Mobile Number
+                </button>
+                <button onClick={() => { setSearchMode("ref"); setError(""); }}
+                  className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${searchMode === "ref" ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
+                  Booking ID
+                </button>
+              </div>
+
+              {searchMode === "phone" ? (
+                <>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Mobile Number</label>
+                  <input
+                    type="tel" value={phone} inputMode="numeric" maxLength={10}
+                    onChange={e => { setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); setError(""); }}
+                    placeholder="10-digit number used during booking"
+                    className={`w-full border rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:border-transparent ${error ? "border-red-400 focus:ring-red-400" : "border-slate-200 focus:ring-blue-500"}`}
+                    onKeyDown={e => e.key === "Enter" && handleSendOtp()}
+                  />
+                  {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+                  <button onClick={handleSendOtp} disabled={loading}
+                    className="w-full mt-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+                    {loading ? (<><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Checking...</>) : "Send OTP"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Booking ID</label>
+                  <input
+                    type="text" value={bookingRef}
+                    onChange={e => { setBookingRef(e.target.value.toUpperCase()); setError(""); }}
+                    placeholder="e.g. LP1234"
+                    className={`w-full border rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:border-transparent font-mono tracking-widest ${error ? "border-red-400 focus:ring-red-400" : "border-slate-200 focus:ring-blue-500"}`}
+                    onKeyDown={e => e.key === "Enter" && handleSearchByRef()}
+                  />
+                  {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+                  <button onClick={handleSearchByRef} disabled={loading}
+                    className="w-full mt-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+                    {loading ? (<><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Searching...</>) : "Find Booking"}
+                  </button>
+                </>
+              )}
             </div>
           )}
 
@@ -225,8 +297,24 @@ export default function ReportsPage() {
 
                       {/* Report section */}
                       {b.status === "pending" && (
-                        <div className="bg-yellow-50 border border-yellow-100 rounded-xl px-4 py-3 text-sm text-yellow-700">
-                          ⏳ Your report is being prepared. We'll notify you once it's ready.
+                        <div className="space-y-2">
+                          <div className="bg-yellow-50 border border-yellow-100 rounded-xl px-4 py-3 text-sm text-yellow-700">
+                            ⏳ Your report is being prepared. We'll notify you once it's ready.
+                          </div>
+                          <button onClick={() => handleCancel(b.id)} disabled={cancelling === b.id}
+                            className="text-xs text-red-400 hover:text-red-600 hover:underline disabled:opacity-50 transition-colors">
+                            {cancelling === b.id ? "Cancelling..." : "Cancel this booking"}
+                          </button>
+                        </div>
+                      )}
+                      {b.status === "cancelled" && (
+                        <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-sm text-red-700">
+                          ❌ This booking has been cancelled.
+                        </div>
+                      )}
+                      {b.status === "sample_collected" && (
+                        <div className="bg-orange-50 border border-orange-100 rounded-xl px-4 py-3 text-sm text-orange-700">
+                          🔬 Sample collected. Your report is being processed.
                         </div>
                       )}
 
