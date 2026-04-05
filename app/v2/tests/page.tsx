@@ -348,8 +348,8 @@ function TestsInner() {
     <div className="min-h-screen bg-slate-50">
       <V2Navbar />
 
-      {/* Sticky search + categories */}
-      <div className="sticky top-16 z-30 bg-white/95 backdrop-blur border-b border-slate-100 shadow-sm">
+      {/* Search + categories */}
+      <div className="bg-white border-b border-slate-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-3 space-y-2">
           {/* Search */}
           <div className="relative">
@@ -444,7 +444,7 @@ function TestsInner() {
           </div>
 
           {/* ── Cart sidebar (desktop only) ── */}
-          <div className="hidden md:block sticky top-[132px]">
+          <div className="hidden md:block sticky top-24">
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
               <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                 <h3 className="font-bold text-slate-900">Your Cart</h3>
