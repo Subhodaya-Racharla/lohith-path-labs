@@ -154,23 +154,26 @@ export default function ReportsPage() {
                   </button>
                 </>
               ) : (
-                <>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Mobile Number</label>
-                  <p className="text-xs text-slate-400 mb-2">Use the same number you registered with</p>
-                  <div className="flex">
-                    <span className="flex items-center px-3.5 bg-slate-100 border border-r-0 border-slate-200 rounded-l-xl text-slate-600 text-sm font-semibold select-none">🇮🇳 +91</span>
-                    <input type="tel" value={phone} inputMode="numeric" maxLength={10}
-                      onChange={e => { setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); setError(""); }}
-                      placeholder="10-digit mobile number"
-                      onKeyDown={e => e.key === "Enter" && handleSearchByPhone()}
-                      className={`flex-1 border rounded-r-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:border-transparent ${error ? "border-red-400 focus:ring-red-400" : "border-slate-200 focus:ring-blue-500"}`} />
+                <div className="space-y-4">
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-4 flex gap-3">
+                    <svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z" />
+                    </svg>
+                    <div>
+                      <p className="text-sm font-semibold text-amber-800">OTP Verification Coming Soon</p>
+                      <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+                        Mobile number search requires OTP verification via SMS to protect your privacy. This feature will be available shortly.
+                      </p>
+                      <p className="text-xs text-amber-600 mt-2 font-medium">
+                        👉 Meanwhile, use your <strong>Booking ID</strong> (e.g. LP1234) from your receipt to track reports instantly.
+                      </p>
+                    </div>
                   </div>
-                  {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
-                  <button onClick={handleSearchByPhone} disabled={loading}
-                    className="w-full mt-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
-                    {loading ? <>{spinner} Searching...</> : "Find My Bookings"}
+                  <button onClick={() => setSearchMode("ref")}
+                    className="w-full border-2 border-blue-200 text-blue-600 hover:bg-blue-50 font-semibold py-3 rounded-xl transition-colors text-sm">
+                    Use Booking ID instead →
                   </button>
-                </>
+                </div>
               )}
             </div>
           )}
