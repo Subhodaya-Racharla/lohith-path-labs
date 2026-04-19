@@ -7,7 +7,7 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-const BASE_URL = "https://lohith-advanced-pathlabs.vercel.app";
+const BASE_URL = "https://lohithpathlabs.in";
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
@@ -53,6 +53,10 @@ export const metadata: Metadata = {
     title: "Lohith Advanced Quality Testing Path Labs | Medak, Telangana",
     description:
       "Trusted pathology lab in Medak, Telangana. Blood tests, thyroid, ECG, allergy & more with home collection. Fast WhatsApp reports.",
+  },
+
+  verification: {
+    google: "BBoAdCS5sB9Kb0LxyaeEcQ8eLcsRLw60kqlGecRDt-o",
   },
 
   robots: {

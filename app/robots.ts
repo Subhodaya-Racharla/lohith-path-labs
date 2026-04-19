@@ -9,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/admin/", "/api/"],
       },
     ],
-    sitemap: "https://lohith-advanced-pathlabs.vercel.app/sitemap.xml",
+    sitemap: "https://lohithpathlabs.in/sitemap.xml",
   };
 }

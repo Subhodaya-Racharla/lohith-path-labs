@@ -1,6 +1,6 @@
 import { MetadataRoute } from "next";
 
-const BASE_URL = "https://lohith-advanced-pathlabs.vercel.app";
+const BASE_URL = "https://lohithpathlabs.in";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
@@ -11,10 +11,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1,
     },
     {
-      url: `${BASE_URL}/book`,
+      url: `${BASE_URL}/tests`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.9,
+    },
+    {
+      url: `${BASE_URL}/reports`,
       lastModified: new Date(),
       changeFrequency: "monthly",
-      priority: 0.9,
+      priority: 0.7,
     },
   ];
 }
