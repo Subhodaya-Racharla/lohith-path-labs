@@ -81,11 +81,28 @@ function TestsInner() {
   const [submitting, setSubmitting]   = useState(false);
   const [confirmed, setConfirmed] = useState<ConfirmedDetails | null>(null);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
+  const [recentBooking, setRecentBooking] = useState<{ ref: string; receiptHtml: string } | null>(null);
 
   // Fetch tests
   useEffect(() => {
     supabase.from("tests").select("*").eq("is_active", true).order("category").order("name")
       .then(({ data }) => { setTests((data as Test[]) || []); setLoading(false); });
+  }, []);
+
+  // Check localStorage for recent booking (show when user comes back)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("lastBooking");
+      if (saved) {
+        const data = JSON.parse(saved);
+        // Show if booked within last 24 hours
+        if (Date.now() - data.timestamp < 24 * 60 * 60 * 1000) {
+          setRecentBooking({ ref: data.ref, receiptHtml: data.receiptHtml });
+        } else {
+          localStorage.removeItem("lastBooking");
+        }
+      }
+    } catch { /* ignore */ }
   }, []);
 
   // Auto-add test from URL param
@@ -148,6 +165,19 @@ function TestsInner() {
 
     setErrors(e);
     return Object.keys(e).length === 0;
+  }
+
+  // Silent download — goes straight to Downloads, zero dialog
+  function downloadReceiptFile(html: string, ref: string) {
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `Receipt-${ref}-LohithPathLabs.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   function buildReceiptHTML(d: {
@@ -268,12 +298,20 @@ function TestsInner() {
       `Please confirm my appointment. Thank you!`,
     ].filter(Boolean).join("\n");
 
-    // Open BOTH windows synchronously before any await — browsers only allow
-    // window.open inside a direct user-gesture call stack, not after async gaps
-    const receiptWin = window.open("", "_blank");
-    if (receiptWin) {
-      receiptWin.document.write(`<html><body style="font-family:Arial;display:flex;align-items:center;justify-content:center;height:100vh;color:#64748b"><p>⏳ Generating your receipt...</p></body></html>`);
-    }
+    // Build receipt HTML before the await so we can download + open WhatsApp
+    // both synchronously inside the user-gesture call stack
+    const receiptHtml = buildReceiptHTML({
+      ref, patientName: form.patient_name, phone: cleanPhone,
+      cartItems: items.map(i => ({ name: i.test.name, price: i.test.price })),
+      total, date: formattedDate, slot: form.time_slot,
+      collectionType: form.collection_type, address: formattedAddress,
+      paymentMethod: form.payment_method, bookedOn,
+    });
+
+    // 1. Silent download to Downloads folder — no dialog
+    downloadReceiptFile(receiptHtml, ref);
+
+    // 2. Open WhatsApp — must be before any await or browsers block it
     const waWin = window.open(`https://wa.me/${LAB_WHATSAPP_NO}?text=${encodeURIComponent(waLines)}`, "_blank");
 
     const { error } = await supabase.from("bookings").insert({
@@ -294,28 +332,20 @@ function TestsInner() {
 
     if (error) {
       setSubmitting(false);
-      receiptWin?.close();
       waWin?.close();
       alert("Something went wrong. Please try again or call us.");
       return;
     }
 
-    // Fill receipt and trigger print dialog
-    if (receiptWin) {
-      const html = buildReceiptHTML({
-        ref, patientName: form.patient_name, phone: cleanPhone,
-        cartItems: items.map(i => ({ name: i.test.name, price: i.test.price })),
-        total, date: formattedDate, slot: form.time_slot,
-        collectionType: form.collection_type,
-        address: formattedAddress,
-        paymentMethod: form.payment_method,
-        bookedOn,
-      });
-      receiptWin.document.open();
-      receiptWin.document.write(html);
-      receiptWin.document.close();
-      setTimeout(() => { receiptWin.print(); }, 600);
-    }
+    // Save to localStorage so receipt is available if user comes back
+    const confirmedData = {
+      ref, patientName: form.patient_name, phone: cleanPhone,
+      cartItems: items.map(i => ({ name: i.test.name, price: i.test.price })),
+      total, date: form.preferred_date, slot: form.time_slot,
+      collectionType: form.collection_type, address: formattedAddress ?? undefined,
+      paymentMethod: form.payment_method, receiptHtml, timestamp: Date.now(),
+    };
+    localStorage.setItem("lastBooking", JSON.stringify(confirmedData));
 
     setConfirmed({
       ref,
@@ -476,12 +506,18 @@ function TestsInner() {
 
         {/* Action buttons */}
         <div className="no-print max-w-xl mx-auto mt-5 flex flex-col sm:flex-row gap-3">
-          <button onClick={() => window.print()}
+          <button onClick={() => {
+              const saved = localStorage.getItem("lastBooking");
+              if (saved) {
+                const d = JSON.parse(saved);
+                downloadReceiptFile(d.receiptHtml, d.ref);
+              }
+            }}
             className="flex-1 flex items-center justify-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold px-5 py-3 rounded-xl transition-colors shadow-sm">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            Print / Save Receipt
+            Download Receipt Again
           </button>
           <a href="/reports"
             className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-3 rounded-xl transition-colors">
@@ -794,6 +830,32 @@ function TestsInner() {
     <div className="h-screen flex flex-col bg-slate-50">
       <V2Navbar dark />
       <div className="h-16 shrink-0" />
+
+      {/* Recent booking banner */}
+      {recentBooking && (
+        <div className="shrink-0 bg-green-600 px-4 py-2.5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <svg className="w-4 h-4 text-green-200 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <p className="text-white text-xs font-medium truncate">
+              Recent booking <span className="font-bold font-mono">{recentBooking.ref}</span> — receipt was downloaded
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={() => downloadReceiptFile(recentBooking.receiptHtml, recentBooking.ref)}
+              className="text-xs text-green-100 hover:text-white font-semibold underline whitespace-nowrap">
+              Download again
+            </button>
+            <button onClick={() => { setRecentBooking(null); localStorage.removeItem("lastBooking"); }}
+              className="text-green-300 hover:text-white ml-1">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Search + categories */}
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-sm z-20">
