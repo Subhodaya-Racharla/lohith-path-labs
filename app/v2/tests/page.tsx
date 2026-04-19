@@ -298,22 +298,11 @@ function TestsInner() {
       `Please confirm my appointment. Thank you!`,
     ].filter(Boolean).join("\n");
 
-    // Build receipt HTML before the await so we can download + open WhatsApp
-    // both synchronously inside the user-gesture call stack
-    const receiptHtml = buildReceiptHTML({
-      ref, patientName: form.patient_name, phone: cleanPhone,
-      cartItems: items.map(i => ({ name: i.test.name, price: i.test.price })),
-      total, date: formattedDate, slot: form.time_slot,
-      collectionType: form.collection_type, address: formattedAddress,
-      paymentMethod: form.payment_method, bookedOn,
-    });
+    // Open a blank window NOW (synchronous = not blocked by popup blocker)
+    // We'll navigate it to WhatsApp only after DB save succeeds
+    const waWin = window.open("", "_blank");
 
-    // 1. Silent download to Downloads folder — no dialog
-    downloadReceiptFile(receiptHtml, ref);
-
-    // 2. Open WhatsApp — must be before any await or browsers block it
-    const waWin = window.open(`https://wa.me/${LAB_WHATSAPP_NO}?text=${encodeURIComponent(waLines)}`, "_blank");
-
+    // ── Save to DB first ─────────────────────────────────────────────────────
     const { error } = await supabase.from("bookings").insert({
       patient_name:    form.patient_name,
       phone:           cleanPhone,
@@ -335,6 +324,23 @@ function TestsInner() {
       waWin?.close();
       alert("Something went wrong. Please try again or call us.");
       return;
+    }
+
+    // ── Booking saved — now generate receipt & open WhatsApp ─────────────────
+    const receiptHtml = buildReceiptHTML({
+      ref, patientName: form.patient_name, phone: cleanPhone,
+      cartItems: items.map(i => ({ name: i.test.name, price: i.test.price })),
+      total, date: formattedDate, slot: form.time_slot,
+      collectionType: form.collection_type, address: formattedAddress,
+      paymentMethod: form.payment_method, bookedOn,
+    });
+
+    // Silent download to Downloads folder
+    downloadReceiptFile(receiptHtml, ref);
+
+    // Navigate the pre-opened blank window to WhatsApp (no popup blocker)
+    if (waWin) {
+      waWin.location.href = `https://wa.me/${LAB_WHATSAPP_NO}?text=${encodeURIComponent(waLines)}`;
     }
 
     // Save to localStorage so receipt is available if user comes back
