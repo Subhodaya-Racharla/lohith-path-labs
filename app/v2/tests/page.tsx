@@ -29,7 +29,8 @@ const INDIAN_STATES = [
   "Daman and Diu", "Lakshadweep",
 ];
 
-const BRAND_COLOR = "from-blue-600 to-cyan-500";
+const BRAND_COLOR      = "from-blue-600 to-cyan-500";
+const LAB_WHATSAPP_NO  = "919182147180"; // +91 91821 47180
 
 type Step = "browse" | "checkout" | "confirmed";
 
@@ -54,7 +55,9 @@ const emptyForm = {
 type ConfirmedDetails = {
   ref: string;
   patientName: string;
-  tests: string;
+  phone: string;
+  cartItems: { name: string; price: number | null }[];
+  total: number;
   date: string;
   slot: string;
   collectionType: "walkin" | "home";
@@ -179,28 +182,37 @@ function TestsInner() {
       return;
     }
 
-    // WhatsApp notification to lab (fire and forget)
-    fetch("/api/notify-booking", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        bookingRef:     ref,
-        patientName:    form.patient_name,
-        phone:          form.phone.replace(/\D/g, ""),
-        tests:          testNames,
-        date:           form.preferred_date,
-        slot:           form.time_slot,
-        collectionType: form.collection_type,
-        address:        formattedAddress,
-        paymentMethod:  form.payment_method,
-        amount:         total,
-      }),
-    }).catch(() => {}); // don't block booking if WhatsApp fails
+    // Open WhatsApp with pre-filled booking message (patient sends to lab)
+    const cleanPhone = form.phone.replace(/\D/g, "");
+    const formattedDate = new Date(form.preferred_date).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+    const waLines = [
+      `Hello Lohith Path Labs! 👋`,
+      ``,
+      `I'd like to confirm my booking:`,
+      ``,
+      `📋 *Booking ID:* ${ref}`,
+      `👤 *Patient:* ${form.patient_name}`,
+      `📞 *Phone:* +91 ${cleanPhone}`,
+      `🧪 *Tests:* ${testNames}`,
+      `💰 *Total:* ₹${total}`,
+      ``,
+      `📅 *Date:* ${formattedDate}`,
+      `⏰ *Slot:* ${form.time_slot}`,
+      `🚗 *Collection:* ${form.collection_type === "home" ? "Home Collection" : "Walk-in at Lab"}`,
+      formattedAddress ? `📍 *Address:* ${formattedAddress}` : null,
+      `💳 *Payment:* ${form.payment_method === "cash" ? "Cash on Collection" : "UPI / Online"}`,
+      ``,
+      `Please confirm my appointment. Thank you!`,
+    ].filter(Boolean).join("\n");
+
+    window.open(`https://wa.me/${LAB_WHATSAPP_NO}?text=${encodeURIComponent(waLines)}`, "_blank");
 
     setConfirmed({
       ref,
       patientName:    form.patient_name,
-      tests:          testNames,
+      phone:          cleanPhone,
+      cartItems:      items.map(i => ({ name: i.test.name, price: i.test.price })),
+      total,
       date:           form.preferred_date,
       slot:           form.time_slot,
       collectionType: form.collection_type,
@@ -213,72 +225,170 @@ function TestsInner() {
     setStep("confirmed");
   }
 
-  // ── Confirmation screen ───────────────────────────────────────────────────────
+  // ── Confirmation + Receipt screen ────────────────────────────────────────────
 
   if (step === "confirmed" && confirmed) {
+    const receiptDate = new Date(confirmed.date).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+    const bookedOn    = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+
     return (
-      <div className="min-h-screen hero-bg flex items-center justify-center px-4">
-        <div className="bg-white rounded-2xl p-8 sm:p-10 max-w-md w-full text-center shadow-xl">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
+      <div className="min-h-screen bg-slate-100 py-10 px-4 print:bg-white print:py-0">
+
+        {/* Print-only global style */}
+        <style>{`@media print { .no-print { display: none !important; } }`}</style>
+
+        {/* Success banner */}
+        <div className="no-print max-w-xl mx-auto mb-6 flex items-center gap-3 bg-green-500 text-white px-5 py-3 rounded-2xl shadow">
+          <svg className="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <div>
+            <p className="font-bold text-sm">Booking Confirmed!</p>
+            <p className="text-xs text-green-100">WhatsApp opened — send the message to complete your booking.</p>
           </div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-1">Booking Confirmed!</h2>
-          <p className="text-slate-500 text-sm mb-4">
-            Our team will contact you shortly to confirm your appointment.
-          </p>
-          <div className="bg-slate-50 rounded-xl p-4 mb-6 text-left space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-slate-500">Booking ID</span>
-              <span className="font-bold text-blue-600 text-base">{confirmed.ref}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Patient</span>
-              <span className="font-medium text-slate-800">{confirmed.patientName}</span>
-            </div>
-            <div className="flex justify-between gap-4">
-              <span className="text-slate-500 shrink-0">Tests</span>
-              <span className="font-medium text-slate-800 text-right">{confirmed.tests}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Date</span>
-              <span className="font-medium text-slate-800">
-                {new Date(confirmed.date).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Slot</span>
-              <span className="font-medium text-slate-800">{confirmed.slot}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Collection</span>
-              <span className="font-medium text-slate-800">{confirmed.collectionType === "home" ? "Home Collection" : "Walk-in"}</span>
-            </div>
-            {confirmed.address && (
-              <div className="flex justify-between gap-4">
-                <span className="text-slate-500 shrink-0">Address</span>
-                <span className="font-medium text-slate-800 text-right text-xs">{confirmed.address}</span>
+        </div>
+
+        {/* ── Receipt ── */}
+        <div id="receipt" className="max-w-xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden print:shadow-none print:rounded-none">
+
+          {/* Lab header */}
+          <div className="hero-bg px-6 py-5 print:bg-blue-700">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
               </div>
-            )}
-            <div className="flex justify-between">
-              <span className="text-slate-500">Payment</span>
-              <span className="font-medium text-slate-800">{confirmed.paymentMethod === "cash" ? "Cash on Collection" : "UPI / Online"}</span>
+              <div>
+                <h2 className="text-white font-bold text-lg leading-tight">Lohith Path Labs</h2>
+                <p className="text-blue-200 text-xs">Advanced Quality Testing</p>
+              </div>
+              <div className="ml-auto text-right">
+                <p className="text-blue-200 text-xs">📞 +91 91821 47180</p>
+                <p className="text-white font-bold text-sm mt-0.5">BOOKING RECEIPT</p>
+              </div>
             </div>
           </div>
-          <div className="flex flex-col gap-3">
-            <a href="/reports"
-              className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-full transition-colors">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Track My Reports
-            </a>
-            <button onClick={() => setStep("browse")}
-              className="text-slate-400 hover:text-slate-600 text-sm transition-colors">
-              ← Book More Tests
-            </button>
+
+          {/* Booking ID + date bar */}
+          <div className="flex items-center justify-between px-6 py-3 bg-slate-50 border-b border-slate-100">
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wide">Booking ID</p>
+              <p className="font-bold text-blue-600 text-xl font-mono">{confirmed.ref}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-slate-500 uppercase tracking-wide">Booked On</p>
+              <p className="text-sm font-semibold text-slate-700">{bookedOn}</p>
+            </div>
           </div>
+
+          <div className="px-6 py-5 space-y-5">
+
+            {/* Patient info */}
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Patient Details</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                <div>
+                  <p className="text-xs text-slate-400">Name</p>
+                  <p className="font-semibold text-slate-800">{confirmed.patientName}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400">Mobile</p>
+                  <p className="font-semibold text-slate-800">+91 {confirmed.phone}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-dashed border-slate-200" />
+
+            {/* Tests */}
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Tests Booked</p>
+              <div className="space-y-2">
+                {confirmed.cartItems.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                      <span className="text-slate-800">{item.name}</span>
+                    </div>
+                    <span className="font-semibold text-slate-700">{item.price ? `₹${item.price}` : "—"}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
+                <span className="font-bold text-slate-700">Total Amount</span>
+                <span className="font-bold text-blue-600 text-lg">₹{confirmed.total}</span>
+              </div>
+            </div>
+
+            <div className="border-t border-dashed border-slate-200" />
+
+            {/* Appointment details */}
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Appointment Details</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                <div>
+                  <p className="text-xs text-slate-400">Date</p>
+                  <p className="font-semibold text-slate-800">{receiptDate}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400">Time Slot</p>
+                  <p className="font-semibold text-slate-800">{confirmed.slot}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400">Collection</p>
+                  <p className="font-semibold text-slate-800">{confirmed.collectionType === "home" ? "Home Collection" : "Walk-in at Lab"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400">Payment</p>
+                  <p className="font-semibold text-slate-800">{confirmed.paymentMethod === "cash" ? "Cash on Collection" : "UPI / Online"}</p>
+                </div>
+              </div>
+              {confirmed.address && (
+                <div className="mt-2">
+                  <p className="text-xs text-slate-400">Collection Address</p>
+                  <p className="font-medium text-slate-800 text-sm">{confirmed.address}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Status note */}
+            <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-xs text-amber-700">
+              ⏳ <strong>Status: Pending Confirmation</strong> — Our team will confirm your appointment within 30 minutes.
+            </div>
+
+            {/* Footer */}
+            <p className="text-center text-xs text-slate-400 pt-2">
+              Thank you for choosing Lohith Path Labs · lohithpathlabs.in
+            </p>
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="no-print max-w-xl mx-auto mt-5 flex flex-col sm:flex-row gap-3">
+          <button onClick={() => window.print()}
+            className="flex-1 flex items-center justify-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold px-5 py-3 rounded-xl transition-colors shadow-sm">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            Print / Save Receipt
+          </button>
+          <a href="/reports"
+            className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-3 rounded-xl transition-colors">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Track My Reports
+          </a>
+          <button onClick={() => setStep("browse")}
+            className="sm:hidden text-slate-400 hover:text-slate-600 text-sm text-center py-2 transition-colors">
+            ← Book More Tests
+          </button>
+        </div>
+        <div className="no-print max-w-xl mx-auto mt-2 text-center">
+          <button onClick={() => setStep("browse")} className="hidden sm:inline text-slate-400 hover:text-slate-600 text-sm transition-colors">
+            ← Book More Tests
+          </button>
         </div>
       </div>
     );

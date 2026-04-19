@@ -4,7 +4,7 @@ import { useState } from "react";
 import { supabase, type Booking, type Report } from "@/lib/supabase";
 import V2Navbar from "../components/V2Navbar";
 
-type ReportStep = "phone" | "otp" | "results";
+type SearchStep = "search" | "results";
 type BookingWithReport = Booking & { report: Report | null };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -23,73 +23,59 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function ReportsPage() {
-  const [step, setStep]               = useState<ReportStep>("phone");
-  const [phone, setPhone]             = useState("");
-  const [bookingRef, setBookingRef]   = useState("");
-  const [searchMode, setSearchMode]   = useState<"phone" | "ref">("phone");
-  const [otp, setOtp]                 = useState("");
-  const [generatedOtp, setGeneratedOtp] = useState("");
-  const [bookings, setBookings]       = useState<BookingWithReport[]>([]);
-  const [error, setError]             = useState("");
-  const [loading, setLoading]         = useState(false);
-  const [cancelling, setCancelling]   = useState<string | null>(null);
+  const [step, setStep]             = useState<SearchStep>("search");
+  const [searchMode, setSearchMode] = useState<"phone" | "ref">("ref");
+  const [phone, setPhone]           = useState("");
+  const [bookingRef, setBookingRef] = useState("");
+  const [bookings, setBookings]     = useState<BookingWithReport[]>([]);
+  const [error, setError]           = useState("");
+  const [loading, setLoading]       = useState(false);
+  const [cancelling, setCancelling] = useState<string | null>(null);
 
-  // ── Step 1: Send OTP ─────────────────────────────────────────────────────────
-  async function handleSendOtp() {
-    const digits = phone.replace(/\D/g, "");
-    if (digits.length !== 10) { setError("Enter a valid 10-digit phone number"); return; }
-    setError("");
-    setLoading(true);
+  // ── Search by Booking ID ──────────────────────────────────────────────────────
+  async function handleSearchByRef() {
+    const ref = bookingRef.trim().toUpperCase();
+    if (!ref) { setError("Enter a Booking ID"); return; }
+    setError(""); setLoading(true);
 
-    const { data, error: dbError } = await supabase.from("bookings").select("id").eq("phone", digits).limit(1);
+    const { data, error: dbError } = await supabase
+      .from("bookings").select("*").eq("booking_ref", ref).limit(1);
+
+    if (dbError || !data || data.length === 0) {
+      setLoading(false);
+      setError("No booking found with this ID. Please check and try again.");
+      return;
+    }
+
+    const booking = data[0] as Booking;
+    const { data: reportsData } = await supabase.from("reports").select("*").eq("booking_id", booking.id);
+
+    const reportsMap: Record<string, Report> = {};
+    (reportsData || []).forEach((r: Report) => { reportsMap[r.booking_id] = r; });
+
+    setBookings([{ ...booking, report: reportsMap[booking.id] ?? null }]);
     setLoading(false);
-
-    if (dbError) {
-      setError("Something went wrong. Please try again.");
-      return;
-    }
-    if (!data || data.length === 0) {
-      setError("No bookings found for this number. Please check and try again.");
-      return;
-    }
-
-    // Generate 6-digit OTP (mock — replace with SMS in production)
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    setGeneratedOtp(code);
-
-    // TODO: Send SMS via Twilio / MSG91 / Fast2SMS
-    // Example: await fetch("/api/send-otp", { method: "POST", body: JSON.stringify({ phone: digits, otp: code }) })
-    // For now, OTP is shown below for testing
-    console.log(`[DEV] OTP for ${digits}: ${code}`);
-
-    setStep("otp");
+    setStep("results");
   }
 
-  // ── Step 2: Verify OTP ───────────────────────────────────────────────────────
-  async function handleVerifyOtp() {
-    if (otp.trim() !== generatedOtp) {
-      setError("Incorrect OTP. Please try again.");
-      return;
-    }
-    setError("");
-    setLoading(true);
-
+  // ── Search by Phone ───────────────────────────────────────────────────────────
+  async function handleSearchByPhone() {
     const digits = phone.replace(/\D/g, "");
+    if (digits.length !== 10) { setError("Enter a valid 10-digit mobile number"); return; }
+    if (!/^[6-9]/.test(digits)) { setError("Must start with 6, 7, 8, or 9"); return; }
+    setError(""); setLoading(true);
 
-    const { data: bookingsData, error: bookingsError } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("phone", digits)
-      .order("created_at", { ascending: false });
+    const { data: bookingsData, error: dbError } = await supabase
+      .from("bookings").select("*").eq("phone", digits).order("created_at", { ascending: false });
 
-    if (bookingsError) {
+    if (dbError) {
       setLoading(false);
       setError("Something went wrong. Please try again.");
       return;
     }
     if (!bookingsData || bookingsData.length === 0) {
       setLoading(false);
-      setError("Could not load your bookings.");
+      setError("No bookings found for this number. Please check the number used during booking.");
       return;
     }
 
@@ -104,35 +90,7 @@ export default function ReportsPage() {
     setStep("results");
   }
 
-  // ── Search by booking ref ────────────────────────────────────────────────────
-  async function handleSearchByRef() {
-    const ref = bookingRef.trim().toUpperCase();
-    if (!ref) { setError("Enter a booking ID"); return; }
-    setError("");
-    setLoading(true);
-
-    const { data, error: dbError } = await supabase
-      .from("bookings").select("*").eq("booking_ref", ref).limit(1);
-
-    if (dbError || !data || data.length === 0) {
-      setLoading(false);
-      setError("No booking found with this ID. Please check and try again.");
-      return;
-    }
-
-    const bookingData = data[0] as Booking;
-    const { data: reportsData } = await supabase
-      .from("reports").select("*").eq("booking_id", bookingData.id);
-
-    const reportsMap: Record<string, Report> = {};
-    (reportsData || []).forEach((r: Report) => { reportsMap[r.booking_id] = r; });
-
-    setBookings([{ ...bookingData, report: reportsMap[bookingData.id] ?? null }]);
-    setLoading(false);
-    setStep("results");
-  }
-
-  // ── Cancel booking ───────────────────────────────────────────────────────────
+  // ── Cancel booking ────────────────────────────────────────────────────────────
   async function handleCancel(bookingId: string) {
     if (!confirm("Are you sure you want to cancel this booking?")) return;
     setCancelling(bookingId);
@@ -141,7 +99,12 @@ export default function ReportsPage() {
     setCancelling(null);
   }
 
-  // ── UI ───────────────────────────────────────────────────────────────────────
+  const spinner = (
+    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+    </svg>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -157,188 +120,139 @@ export default function ReportsPage() {
               </svg>
             </div>
             <h1 className="text-2xl font-bold text-slate-900 mb-1">My Reports</h1>
-            <p className="text-slate-500 text-sm">Enter your registered mobile number to view your bookings and download reports.</p>
+            <p className="text-slate-500 text-sm">Track your bookings and download reports.</p>
           </div>
 
-          {/* ── Phone / Booking Ref step ── */}
-          {step === "phone" && (
+          {/* ── Search form ── */}
+          {step === "search" && (
             <div className="bg-white rounded-2xl border border-slate-200 p-6">
-              {/* Toggle tabs */}
+              {/* Tabs */}
               <div className="flex rounded-xl border border-slate-200 overflow-hidden mb-5">
-                <button onClick={() => { setSearchMode("phone"); setError(""); }}
-                  className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${searchMode === "phone" ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
-                  Mobile Number
-                </button>
                 <button onClick={() => { setSearchMode("ref"); setError(""); }}
                   className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${searchMode === "ref" ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
                   Booking ID
                 </button>
+                <button onClick={() => { setSearchMode("phone"); setError(""); }}
+                  className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${searchMode === "phone" ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
+                  Mobile Number
+                </button>
               </div>
 
-              {searchMode === "phone" ? (
-                <>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Mobile Number</label>
-                  <input
-                    type="tel" value={phone} inputMode="numeric" maxLength={10}
-                    onChange={e => { setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); setError(""); }}
-                    placeholder="10-digit number used during booking"
-                    className={`w-full border rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:border-transparent ${error ? "border-red-400 focus:ring-red-400" : "border-slate-200 focus:ring-blue-500"}`}
-                    onKeyDown={e => e.key === "Enter" && handleSendOtp()}
-                  />
-                  {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
-                  <button onClick={handleSendOtp} disabled={loading}
-                    className="w-full mt-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
-                    {loading ? (<><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Checking...</>) : "Send OTP"}
-                  </button>
-                </>
-              ) : (
+              {searchMode === "ref" ? (
                 <>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">Booking ID</label>
-                  <input
-                    type="text" value={bookingRef}
+                  <p className="text-xs text-slate-400 mb-2">Found on your booking receipt (e.g. LP1234)</p>
+                  <input type="text" value={bookingRef}
                     onChange={e => { setBookingRef(e.target.value.toUpperCase()); setError(""); }}
                     placeholder="e.g. LP1234"
-                    className={`w-full border rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:border-transparent font-mono tracking-widest ${error ? "border-red-400 focus:ring-red-400" : "border-slate-200 focus:ring-blue-500"}`}
                     onKeyDown={e => e.key === "Enter" && handleSearchByRef()}
-                  />
+                    className={`w-full border rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:border-transparent font-mono tracking-widest text-lg ${error ? "border-red-400 focus:ring-red-400" : "border-slate-200 focus:ring-blue-500"}`} />
                   {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
                   <button onClick={handleSearchByRef} disabled={loading}
                     className="w-full mt-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
-                    {loading ? (<><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Searching...</>) : "Find Booking"}
+                    {loading ? <>{spinner} Searching...</> : "Find My Booking"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Mobile Number</label>
+                  <p className="text-xs text-slate-400 mb-2">Use the same number you registered with</p>
+                  <div className="flex">
+                    <span className="flex items-center px-3.5 bg-slate-100 border border-r-0 border-slate-200 rounded-l-xl text-slate-600 text-sm font-semibold select-none">🇮🇳 +91</span>
+                    <input type="tel" value={phone} inputMode="numeric" maxLength={10}
+                      onChange={e => { setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); setError(""); }}
+                      placeholder="10-digit mobile number"
+                      onKeyDown={e => e.key === "Enter" && handleSearchByPhone()}
+                      className={`flex-1 border rounded-r-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:border-transparent ${error ? "border-red-400 focus:ring-red-400" : "border-slate-200 focus:ring-blue-500"}`} />
+                  </div>
+                  {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+                  <button onClick={handleSearchByPhone} disabled={loading}
+                    className="w-full mt-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+                    {loading ? <>{spinner} Searching...</> : "Find My Bookings"}
                   </button>
                 </>
               )}
             </div>
           )}
 
-          {/* ── OTP step ── */}
-          {step === "otp" && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6">
-              <div className="flex items-center gap-3 mb-5">
-                <button onClick={() => { setStep("phone"); setOtp(""); setError(""); }}
-                  className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors">
-                  <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <div>
-                  <div className="font-semibold text-slate-900 text-sm">OTP sent to +91 {phone}</div>
-                  <div className="text-slate-400 text-xs">Valid for 10 minutes</div>
-                </div>
-              </div>
-
-              {/* Dev helper */}
-              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
-                <strong>Note:</strong> SMS integration pending. Your OTP is: <strong className="text-lg tracking-widest font-mono">{generatedOtp}</strong>
-              </div>
-
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Enter OTP</label>
-              <input
-                type="text" value={otp} inputMode="numeric" maxLength={6}
-                onChange={e => { setOtp(e.target.value.replace(/\D/g, "").slice(0, 6)); setError(""); }}
-                placeholder="6-digit OTP"
-                className={`w-full border rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:border-transparent text-center text-xl tracking-widest font-mono ${error ? "border-red-400 focus:ring-red-400" : "border-slate-200 focus:ring-blue-500"}`}
-                onKeyDown={e => e.key === "Enter" && handleVerifyOtp()}
-              />
-              {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
-              <button onClick={handleVerifyOtp} disabled={loading || otp.length < 6}
-                className="w-full mt-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
-                {loading ? (
-                  <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Verifying...</>
-                ) : "Verify & View Reports"}
-              </button>
-              <button onClick={handleSendOtp} disabled={loading}
-                className="w-full mt-2 text-blue-600 text-sm hover:underline disabled:opacity-50">
-                Resend OTP
-              </button>
-            </div>
-          )}
-
-          {/* ── Results step ── */}
+          {/* ── Results ── */}
           {step === "results" && (
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-bold text-slate-900">Bookings for +91 {phone}</h2>
-                <button onClick={() => { setStep("phone"); setPhone(""); setOtp(""); setBookings([]); }}
-                  className="text-sm text-blue-600 hover:underline">Change number</button>
+                <h2 className="font-bold text-slate-900">
+                  {bookings.length} booking{bookings.length !== 1 ? "s" : ""} found
+                </h2>
+                <button onClick={() => { setStep("search"); setPhone(""); setBookingRef(""); setBookings([]); setError(""); }}
+                  className="text-sm text-blue-600 hover:underline">← Search again</button>
               </div>
 
-              {bookings.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-400">
-                  <p>No bookings found.</p>
-                  <a href="/tests" className="mt-2 inline-block text-blue-600 text-sm hover:underline">Book a test →</a>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {bookings.map(b => (
-                    <div key={b.id} className="bg-white rounded-2xl border border-slate-200 p-5">
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            {b.booking_ref && (
-                              <span className="text-xs font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-0.5 rounded-full">{b.booking_ref}</span>
-                            )}
-                            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${STATUS_STYLES[b.status]}`}>
-                              {STATUS_LABELS[b.status]}
-                            </span>
-                          </div>
-                          <h3 className="font-semibold text-slate-900 mt-1">{b.test_name}</h3>
-                          <div className="flex flex-wrap gap-3 mt-1 text-xs text-slate-500">
-                            {b.preferred_date && <span>📅 {new Date(b.preferred_date).toLocaleDateString("en-IN")}</span>}
-                            {b.time_slot && <span>🕐 {b.time_slot}</span>}
-                            <span>{b.collection_type === "home" ? "🏠 Home" : "🏥 Walk-in"}</span>
-                            {b.payment_method && <span>💳 {b.payment_method === "cash" ? "Cash" : "UPI"}</span>}
-                          </div>
-                          <p className="text-xs text-slate-300 mt-1">
-                            Booked {new Date(b.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                          </p>
+              <div className="space-y-4">
+                {bookings.map(b => (
+                  <div key={b.id} className="bg-white rounded-2xl border border-slate-200 p-5">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {b.booking_ref && (
+                            <span className="text-xs font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-0.5 rounded-full font-mono">{b.booking_ref}</span>
+                          )}
+                          <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${STATUS_STYLES[b.status]}`}>
+                            {STATUS_LABELS[b.status]}
+                          </span>
                         </div>
+                        <h3 className="font-semibold text-slate-900 mt-1">{b.test_name}</h3>
+                        <div className="flex flex-wrap gap-3 mt-1 text-xs text-slate-500">
+                          {b.preferred_date && <span>📅 {new Date(b.preferred_date).toLocaleDateString("en-IN")}</span>}
+                          {b.time_slot && <span>🕐 {b.time_slot}</span>}
+                          <span>{b.collection_type === "home" ? "🏠 Home" : "🏥 Walk-in"}</span>
+                          {b.payment_method && <span>💳 {b.payment_method === "cash" ? "Cash" : "UPI"}</span>}
+                        </div>
+                        <p className="text-xs text-slate-300 mt-1">
+                          Booked {new Date(b.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                        </p>
                       </div>
-
-                      {/* Report section */}
-                      {b.status === "pending" && (
-                        <div className="space-y-2">
-                          <div className="bg-yellow-50 border border-yellow-100 rounded-xl px-4 py-3 text-sm text-yellow-700">
-                            ⏳ Your report is being prepared. We'll notify you once it's ready.
-                          </div>
-                          <button onClick={() => handleCancel(b.id)} disabled={cancelling === b.id}
-                            className="text-xs text-red-400 hover:text-red-600 hover:underline disabled:opacity-50 transition-colors">
-                            {cancelling === b.id ? "Cancelling..." : "Cancel this booking"}
-                          </button>
-                        </div>
-                      )}
-                      {b.status === "cancelled" && (
-                        <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-sm text-red-700">
-                          ❌ This booking has been cancelled.
-                        </div>
-                      )}
-                      {b.status === "sample_collected" && (
-                        <div className="bg-orange-50 border border-orange-100 rounded-xl px-4 py-3 text-sm text-orange-700">
-                          🔬 Sample collected. Your report is being processed.
-                        </div>
-                      )}
-
-                      {b.report && b.status !== "pending" && (
-                        <div className="bg-green-50 border border-green-100 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
-                          <div className="text-sm text-green-700">
-                            <div className="font-semibold">✅ Report Ready</div>
-                            <div className="text-xs mt-0.5 text-green-600">
-                              Expires {new Date(b.report.expires_at).toLocaleDateString("en-IN")}
-                            </div>
-                          </div>
-                          <a href={b.report.file_url} target="_blank" rel="noopener noreferrer"
-                            className="shrink-0 flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-full transition-colors">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            Download PDF
-                          </a>
-                        </div>
-                      )}
                     </div>
-                  ))}
-                </div>
-              )}
+
+                    {b.status === "pending" && (
+                      <div className="space-y-2">
+                        <div className="bg-yellow-50 border border-yellow-100 rounded-xl px-4 py-3 text-sm text-yellow-700">
+                          ⏳ Your report is being prepared. We will notify you once it is ready.
+                        </div>
+                        <button onClick={() => handleCancel(b.id)} disabled={cancelling === b.id}
+                          className="text-xs text-red-400 hover:text-red-600 hover:underline disabled:opacity-50 transition-colors">
+                          {cancelling === b.id ? "Cancelling..." : "Cancel this booking"}
+                        </button>
+                      </div>
+                    )}
+                    {b.status === "cancelled" && (
+                      <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-sm text-red-700">
+                        ❌ This booking has been cancelled.
+                      </div>
+                    )}
+                    {b.status === "sample_collected" && (
+                      <div className="bg-orange-50 border border-orange-100 rounded-xl px-4 py-3 text-sm text-orange-700">
+                        🔬 Sample collected. Your report is being processed.
+                      </div>
+                    )}
+                    {b.report && b.status !== "pending" && (
+                      <div className="bg-green-50 border border-green-100 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+                        <div className="text-sm text-green-700">
+                          <div className="font-semibold">✅ Report Ready</div>
+                          <div className="text-xs mt-0.5 text-green-600">
+                            Expires {new Date(b.report.expires_at).toLocaleDateString("en-IN")}
+                          </div>
+                        </div>
+                        <a href={b.report.file_url} target="_blank" rel="noopener noreferrer"
+                          className="shrink-0 flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-full transition-colors">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Download PDF
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
 
               <div className="mt-6 text-center">
                 <a href="/tests" className="inline-flex items-center gap-2 text-blue-600 text-sm font-medium hover:underline">
@@ -347,6 +261,7 @@ export default function ReportsPage() {
               </div>
             </div>
           )}
+
         </div>
       </div>
     </div>
