@@ -45,6 +45,13 @@ export default function V2Navbar({ dark }: { dark?: boolean }) {
             <a href="/reports" className="text-slate-300 hover:text-white text-sm font-medium transition-colors">
               My Reports
             </a>
+            <a href="https://lab.flabslis.com/login" target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-slate-300 hover:text-white text-sm font-medium transition-colors border border-white/20 hover:border-white/40 px-3 py-1.5 rounded-full">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              Flabs
+            </a>
             <a href="/tests"
               className="relative flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-full transition-colors">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -95,6 +102,10 @@ export default function V2Navbar({ dark }: { dark?: boolean }) {
             ))}
             <a href="/reports" onClick={() => setIsOpen(false)}
               className="block text-slate-300 hover:text-white text-sm font-medium py-2 transition-colors">My Reports</a>
+            <a href="https://lab.flabslis.com/login" target="_blank" rel="noopener noreferrer" onClick={() => setIsOpen(false)}
+              className="block text-center border border-white/20 text-slate-300 hover:text-white text-sm font-semibold px-4 py-3 rounded-full transition-colors">
+              Flabs ↗
+            </a>
             <a href="/tests" onClick={() => setIsOpen(false)}
               className="block text-center bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-3 rounded-full transition-colors">
               Book Tests {count > 0 && `(${count} in cart)`}
