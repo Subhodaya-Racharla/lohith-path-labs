@@ -167,17 +167,25 @@ function TestsInner() {
     return Object.keys(e).length === 0;
   }
 
-  // Silent download — goes straight to Downloads, zero dialog
+  // Download receipt — silent on desktop, opens new tab on iOS (iOS blocks blob downloads)
   function downloadReceiptFile(html: string, ref: string) {
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
     const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href     = url;
-    a.download = `Receipt-${ref}-LohithPathLabs.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      // iOS Safari doesn't support programmatic blob downloads.
+      // Open in a new tab so the user can view/share via the Safari Share sheet.
+      const win = window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), win ? 8000 : 0);
+    } else {
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = `Receipt-${ref}-LohithPathLabs.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
   }
 
   function buildReceiptHTML(d: {
@@ -298,9 +306,12 @@ function TestsInner() {
       `Please confirm my appointment. Thank you!`,
     ].filter(Boolean).join("\n");
 
-    // Open a blank window NOW (synchronous = not blocked by popup blocker)
-    // We'll navigate it to WhatsApp only after DB save succeeds
-    const waWin = window.open("", "_blank");
+    // On desktop: open a blank window NOW (before await) to avoid popup blockers,
+    // then navigate it to WhatsApp after DB save.
+    // On mobile: we use window.location.href instead — opening a new tab on iPhone
+    // leaves the user on the blank tab when they return from WhatsApp.
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const waWin = !isMobile ? window.open("", "_blank") : null;
 
     // ── Save to DB first ─────────────────────────────────────────────────────
     const { error } = await supabase.from("bookings").insert({
@@ -335,12 +346,18 @@ function TestsInner() {
       paymentMethod: form.payment_method, bookedOn,
     });
 
-    // Silent download to Downloads folder
+    // Receipt download (desktop) / open in tab (iOS)
     downloadReceiptFile(receiptHtml, ref);
 
-    // Navigate the pre-opened blank window to WhatsApp (no popup blocker)
-    if (waWin) {
-      waWin.location.href = `https://wa.me/${LAB_WHATSAPP_NO}?text=${encodeURIComponent(waLines)}`;
+    // Open WhatsApp with pre-filled message.
+    // Desktop: navigate the pre-opened blank window (avoids popup blocker).
+    // Mobile: navigate the current tab — iOS intercepts wa.me and opens the app;
+    //   iOS BFCache restores the confirmation page when the user swipes back.
+    const waUrl = `https://wa.me/${LAB_WHATSAPP_NO}?text=${encodeURIComponent(waLines)}`;
+    if (isMobile) {
+      window.location.href = waUrl;
+    } else if (waWin) {
+      waWin.location.href = waUrl;
     }
 
     // Save to localStorage so receipt is available if user comes back
@@ -390,7 +407,11 @@ function TestsInner() {
           </svg>
           <div>
             <p className="font-bold text-sm">Booking Confirmed!</p>
-            <p className="text-xs text-green-100">WhatsApp opened — send the message to complete your booking.</p>
+            <p className="text-xs text-green-100">
+              {typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent)
+                ? "Receipt opened in Safari — use Share to save it. Swipe back to return here."
+                : "WhatsApp opened — send the message to complete your booking."}
+            </p>
           </div>
         </div>
 
